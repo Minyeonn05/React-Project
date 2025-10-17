@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login</title>
+</head>
+
+<body>
+    <a href="index.html"><button>Back</button></a>
+    <div id="message-box"></div>
+    <div>
+        <form>
+            <div>
+                <input type="email" title="Email" class="form-control" id="txt_username" placeholder="Email">
+            </div>
+            <div>
+                <input type="password" title="Password" class="form-control" id="txt_password" placeholder="Password">
+            </div>
+            <div>
+                <input type="checkbox" class="form-control" id="txt_remember">
+                <label for="">Remember me</label>
+            </div>
+            <input type="button" value="Login" onclick="login()">
+        </form>
+    </div>
+    <script src="login.js"></script>
+</body>
+
+</html>

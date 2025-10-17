@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en-US" lang="en-US">
+<head>
+    <meta charset="utf-8">
+    <title>Ecomus - Ultimate HTML</title>
+
+    <meta name="author" content="themesflat.com">
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+
+    <!-- font -->
+    <link rel="stylesheet" href="fonts/fonts.css">
+    <!-- Icons -->
+    <link rel="stylesheet" href="fonts/font-icons.css">
+    <link rel="stylesheet" href="css/bootstrap.min.css">
+    <link rel="stylesheet" href="css/swiper-bundle.min.css">
+    <link rel="stylesheet" href="css/animate.css">
+    <link rel="stylesheet" href="css/animate.css">
+    <link rel="stylesheet" type="text/css" href="css/styles.css" />
+
+    <!-- Favicon and Touch Icons  -->
+    <link rel="shortcut icon" href="images/logo/favicon.png">
+    <link rel="apple-touch-icon-precomposed" href="images/logo/favicon.png">
+
+</head>
+
+<body class="preload-wrapper">
+    <!-- preload -->
+    <!-- ... HTML ที่มีอยู่เดิม ... -->
+
+    <div class="tf-search-sticky">
+        <div class="container">
+            <div class="row">
+                <div class="col-12">
+                    <div class="tf-search-inner">
+                        <form action="#" method="get" role="search" class="search-form">
+                            <input type="search" id="search-input" class="search-field" placeholder="Search product..." value="" name="s" title="Search for:">
+                            <button class="search-submit" type="submit" title="Search">
+                                <i class="icon-search"></i>
+                            </button>
+                        </form>
+                        <div id="search-results" class="search-results-dropdown">
+                            <!-- ผลการค้นหา (เฉพาะ ID) จะถูกแทรกที่นี่ -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ส่วนตารางผลิตภัณฑ์ที่มีอยู่เดิม - ตรวจสอบให้แน่ใจว่ามี ID สำหรับการอัปเดตแบบไดนามิก -->
+    <section class="tf-section product-detail">
+        <div class="container">
+            <div class="row">
+                <div class="col-md-12">
+                    <div class="product-grid" id="product-grid-container">
+                        <!-- ผลิตภัณฑ์จะถูกโหลดที่นี่ -->
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <script>
+        // ฟังก์ชันสำหรับดึงและแสดงผลิตภัณฑ์ทั้งหมดเมื่อเริ่มต้น
+        async function fetchAndDisplayProducts() {
+            try {
+                // สมมติว่า endpoint API สำหรับผลิตภัณฑ์ทั้งหมดคือ /api/products
+                const response = await fetch('/api/products');
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                const products = await response.json();
+                renderProducts(products);
+            } catch (error) {
+                console.error("เกิดข้อผิดพลาดในการดึงผลิตภัณฑ์:", error);
+                const productGridElement = document.getElementById('product-grid-container');
+                if (productGridElement) {
+                    productGridElement.innerHTML = '<p>เกิดข้อผิดพลาดในการโหลดผลิตภัณฑ์ กรุณาลองอีกครั้งภายหลัง</p>';
+                }
+            }
+        }
+
+        // ฟังก์ชันสำหรับแสดงผลผลิตภัณฑ์ในตาราง
+        function renderProducts(products) {
+            const productGridElement = document.getElementById('product-grid-container');
+            if (!productGridElement) {
+                console.error("ไม่พบ container ตารางผลิตภัณฑ์");
+                return;
+            }
+
+            let html_text = '';
+            if (products.length === 0) {
+                html_text = '<p>ไม่พบผลิตภัณฑ์</p>';
+            } else {
+                products.forEach(product => {
+                    // สมมติว่า object ผลิตภัณฑ์ของคุณมีคุณสมบัติ 'id', 'name', 'price', และ 'img'
+                    // เราจะใช้รูปภาพแรกใน 'img' array
+                    const imageUrl = product.img && product.img.length > 0 ? product.img[0] : 'https://placehold.co/270x300/e0e0e0/000000?text=No+Image'; // Fallback image
+
+                    html_text += `
+                        <div class="col-lg-3 col-md-4 col-sm-6 product-item">
+                            <div class="product-box">
+                                <div class="image-product">
+                                    <img src="${imageUrl}" alt="${product.name}">
+                                    <ul class="button-product">
+                                        <li><a href="#" class="btn-product">Add to cart</a></li>
+                                        <li><a href="#" class="btn-product">Quick view</a></li>
+                                    </ul>
+                                </div>
+                                <div class="product-content">
+                                    <h6 class="product-name"><a href="#">${product.name}</a></h6>
+                                    <div class="product-price">
+                                        <span>$${parseFloat(product.price).toFixed(2)}</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                });
+            }
+            productGridElement.innerHTML = html_text;
+        }
+
+        // ฟังก์ชันการค้นหา
+        const searchInput = document.getElementById('search-input');
+        const searchResultsDropdown = document.getElementById('search-results');
+        const productGridContainer = document.getElementById('product-grid-container'); // ดึงพื้นที่แสดงผลิตภัณฑ์หลัก
+
+        let searchTimeout;
+
+        searchInput.addEventListener('input', () => {
+            clearTimeout(searchTimeout);
+            const query = searchInput.value.trim();
+
+            if (query.length > 0) {
+                // หน่วงเวลาการค้นหาเพื่อหลีกเลี่ยงการส่งคำขอมากเกินไป
+                searchTimeout = setTimeout(async () => {
+                    try {
+                        const response = await fetch(`/api/products/search?q=${encodeURIComponent(query)}`);
+                        if (!response.ok) {
+                            throw new Error(`HTTP error! status: ${response.status}`);
+                        }
+                        const results = await response.json();
+                        displaySearchResults(results); // เรียกฟังก์ชันนี้เพื่อแสดง ID ใน dropdown
+                        renderProducts(results); // อัปเดตตารางผลิตภัณฑ์หลักด้วยผลการค้นหาด้วย
+                    } catch (error) {
+                        console.error("เกิดข้อผิดพลาดในการดึงผลการค้นหา:", error);
+                        searchResultsDropdown.innerHTML = '<p>เกิดข้อผิดพลาดในการค้นหา</p>';
+                        searchResultsDropdown.style.display = 'block'; // แสดง dropdown แม้เกิดข้อผิดพลาด
+                    }
+                }, 300); // หน่วงเวลา 300ms
+            } else {
+                searchResultsDropdown.innerHTML = '';
+                searchResultsDropdown.style.display = 'none';
+                fetchAndDisplayProducts(); // หากช่องค้นหาว่างเปล่า ให้แสดงผลิตภัณฑ์ทั้งหมดอีกครั้ง
+            }
+        });
+
+        // แก้ไข: ฟังก์ชันสำหรับแสดงผลการค้นหาโดยแสดงเฉพาะ Product ID
+        function displaySearchResults(results) {
+            searchResultsDropdown.innerHTML = ''; // ล้างผลลัพธ์ก่อนหน้า
+            if (results.length === 0) {
+                searchResultsDropdown.innerHTML = '<p>ไม่พบผลิตภัณฑ์ที่ตรงกัน</p>';
+                searchResultsDropdown.style.display = 'block';
+                return;
+            }
+
+            const ul = document.createElement('ul');
+            results.forEach(product => {
+                const li = document.createElement('li');
+                // แสดงเฉพาะ Product ID
+                li.innerHTML = `<a href="#">${product.id}</a>`;
+                ul.appendChild(li);
+            });
+            searchResultsDropdown.appendChild(ul);
+            searchResultsDropdown.style.display = 'block'; // แสดง dropdown
+        }
+
+        // ซ่อนผลการค้นหาเมื่อคลิกภายนอก
+        document.addEventListener('click', (event) => {
+            if (!searchResultsDropdown.contains(event.target) && event.target !== searchInput) {
+                searchResultsDropdown.style.display = 'none';
+            }
+        });
+
+
+        // โหลดผลิตภัณฑ์ทั้งหมดเมื่อหน้าเว็บโหลดเสร็จสิ้น
+        document.addEventListener('DOMContentLoaded', fetchAndDisplayProducts);
+    </script>
+</body>
+</html>

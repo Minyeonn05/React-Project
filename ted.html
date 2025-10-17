@@ -1,0 +1,364 @@
+แน่นอนครับ การเพิ่มช่องค้นหาข้อมูลในไฟล์ `ted.html` สามารถทำได้โดยการเพิ่มองค์ประกอบ HTML สำหรับช่องค้นหา และเขียนโค้ด JavaScript เพิ่มเติมเพื่อกรองข้อมูลสินค้าที่แสดงผลตามคำค้นหา
+
+ผมจะใช้วิธีการกรองข้อมูลจากฝั่ง Client (ในเบราว์เซอร์) ซึ่งหมายความว่าเบราว์เซอร์จะโหลดข้อมูลสินค้าทั้งหมดมาเก็บไว้ก่อน แล้วจึงใช้ JavaScript ในการค้นหาและแสดงผลเฉพาะสินค้าที่ตรงกับคำค้นหา วิธีนี้ง่ายและรวดเร็วโดยไม่ต้องแก้ไขไฟล์ `products.js` ที่เป็นฝั่ง Server
+
+นี่คือโค้ด `ted.html` ที่แก้ไขแล้ว โดยมีการเพิ่มช่องค้นหาและฟังก์ชันการทำงานที่จำเป็นเข้าไป:
+
+```html
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>แสดงรายการสินค้า</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* CSS ส่วนใหญ่ยังคงเดิม */
+        body {
+            font-family: "Inter", sans-serif;
+            background-color: #f3f4f6;
+            padding: 20px;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        .product-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 24px;
+        }
+        .card-product {
+            background-color: #ffffff;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+            display: flex;
+            flex-direction: column;
+            position: relative;
+        }
+        .card-product:hover {
+            transform: translateY(-8px);
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
+        }
+        .card-product-wrapper {
+            position: relative;
+            height: 250px;
+            overflow: hidden;
+            border-radius: 12px 12px 0 0;
+        }
+        .product-img {
+            display: block;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            position: relative;
+        }
+        .product-img img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            transition: opacity 0.3s ease-in-out;
+        }
+        .product-img .img-hover {
+            position: absolute;
+            top: 0;
+            left: 0;
+            opacity: 0;
+        }
+        .card-product:hover .product-img .img-hover {
+            opacity: 1;
+        }
+        .card-product:hover .product-img .img-product {
+            opacity: 0;
+        }
+        .list-product-btn {
+            position: absolute;
+            bottom: 15px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 8px;
+            opacity: 0;
+            transition: opacity 0.3s ease-in-out;
+            background: rgba(255, 255, 255, 0.85);
+            padding: 8px 12px;
+            border-radius: 20px;
+            backdrop-filter: blur(5px);
+        }
+        .card-product:hover .list-product-btn {
+            opacity: 1;
+        }
+        .box-icon {
+            background-color: #f0f0f0;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+            position: relative;
+            transition: background-color 0.2s ease;
+        }
+        .box-icon:hover {
+            background-color: #e0e0e0;
+        }
+        .box-icon .tooltip {
+            visibility: hidden;
+            background-color: #333;
+            color: #fff;
+            text-align: center;
+            border-radius: 6px;
+            padding: 6px 10px;
+            position: absolute;
+            z-index: 10;
+            bottom: 120%;
+            left: 50%;
+            transform: translateX(-50%);
+            white-space: nowrap;
+            opacity: 0;
+            transition: opacity 0.3s;
+            font-size: 0.8em;
+        }
+        .box-icon:hover .tooltip {
+            visibility: visible;
+            opacity: 1;
+        }
+        .icon {
+            font-size: 20px;
+            color: #4b5563;
+        }
+        .icon-bag::before { content: '🛍️'; }
+        .icon-heart::before { content: '❤️'; }
+        .icon-compare::before { content: '⚖️'; }
+        .icon-view::before { content: '🔍'; }
+        .icon-delete::before { content: '🗑️'; }
+        .icon-check::before { content: '✔️'; }
+        .card-product-info {
+            padding: 16px;
+            text-align: center;
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+        .card-product-info .title {
+            font-size: 1.15em;
+            font-weight: 600;
+            color: #374151;
+            text-decoration: none;
+            margin-bottom: 8px;
+            display: block;
+        }
+        .card-product-info .title:hover {
+            color: #2563eb;
+        }
+        .card-product-info .price {
+            font-size: 1.3em;
+            color: #ef4444;
+            font-weight: bold;
+            margin-bottom: 12px;
+        }
+        .list-color-product {
+            list-style: none;
+            padding: 0;
+            margin: 10px 0 0;
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+        .list-color-item {
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            border: 2px solid #e5e7eb;
+            cursor: pointer;
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: border-color 0.2s ease, box-shadow 0.2s ease;
+            overflow: hidden;
+        }
+        .list-color-item.active {
+            border-color: #2563eb;
+            box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.4);
+        }
+        .list-color-item .swatch-value {
+            width: 100%;
+            height: 100%;
+            border-radius: 50%;
+            display: block;
+            position: absolute;
+            top: 0;
+            left: 0;
+            z-index: 1;
+        }
+        .list-color-item img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            border-radius: 50%;
+            display: block;
+            position: relative;
+            z-index: 2;
+        }
+        .bg_orange-3 { background-color: #f97316; } 
+        .bg_dark { background-color: #000000; }
+        .bg_white { background-color: #ffffff; border: 1px solid #e5e7eb; } 
+        #loading-message {
+            text-align: center;
+            padding: 40px;
+            font-size: 1.5em;
+            color: #6b7280;
+        }
+        .text-center {
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+    <div class="container py-8">
+        <h1 class="text-4xl font-extrabold text-gray-900 mb-4 text-center">สินค้าของเรา</h1>
+
+        <div class="text-center mb-8">
+            <input type="text" id="searchInput" placeholder="ค้นหาตามชื่อสินค้า..." class="w-full max-w-lg p-3 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+        </div>
+        <div id="loading-message" class="text-center">กำลังโหลดสินค้า...</div>
+
+        <div id="nav-sunday" class="product-grid">
+            </div>
+    </div>
+
+    <script>
+        // ตัวแปรสำหรับเก็บข้อมูลสินค้าทั้งหมดที่โหลดมา
+        let allProducts = [];
+
+        // ฟังก์ชันหลักที่ทำงานเมื่อหน้าเว็บโหลดเสร็จ
+        window.onload = function () {
+            const loadingMessage = document.getElementById("loading-message");
+            const searchInput = document.getElementById('searchInput');
+
+            // ดึงข้อมูลสินค้าจาก API
+            fetch('http://localhost:5000/api/products')
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error(`การตอบสนองเครือข่ายไม่สำเร็จ: ${response.status} - ${response.statusText}`);
+                    }
+                    return response.json(); 
+                })
+                .then(data => {
+                    allProducts = data; // เก็บข้อมูลสินค้าทั้งหมดไว้ในตัวแปร
+                    loadingMessage.style.display = 'none'; 
+                    displayProducts(allProducts); // แสดงสินค้าทั้งหมดในครั้งแรก
+                })
+                .catch(error => {
+                    console.error('เกิดปัญหาในการดึงข้อมูลสินค้า:', error);
+                    loadingMessage.textContent = 'ไม่สามารถโหลดสินค้าได้ โปรดตรวจสอบเซิร์ฟเวอร์.';
+                    loadingMessage.classList.add('text-red-600');
+                });
+
+            // START: เพิ่ม Event Listener สำหรับช่องค้นหา
+            searchInput.addEventListener('input', () => {
+                const searchTerm = searchInput.value.toLowerCase().trim();
+                
+                // กรองข้อมูลจาก `allProducts`
+                const filteredProducts = allProducts.filter(product => {
+                    // ค้นหาจากชื่อสินค้า
+                    return product.name.toLowerCase().includes(searchTerm);
+                });
+                
+                // แสดงผลสินค้าที่กรองแล้ว
+                displayProducts(filteredProducts);
+            });
+            // END: เพิ่ม Event Listener สำหรับช่องค้นหา
+        };
+
+        // ฟังก์ชันสำหรับแสดงสินค้าใน HTML
+        function displayProducts(products) {
+            let html_text = "";
+            const productGridElement = document.getElementById("nav-sunday");
+
+            if (!Array.isArray(products) || products.length === 0) {
+                const searchInput = document.getElementById('searchInput');
+                // เปลี่ยนข้อความตามสถานการณ์ (มีคำค้นหาหรือไม่)
+                if (searchInput && searchInput.value) {
+                    html_text = "<p class='text-center text-gray-600 col-span-full'>ไม่พบสินค้าที่ตรงกับคำค้นหาของคุณ</p>";
+                } else {
+                    html_text = "<p class='text-center text-gray-600 col-span-full'>ไม่พบสินค้าในขณะนี้</p>";
+                }
+            } else {
+                for (const product of products) {
+                    const imageMain = product.img && product.img.length > 0 ? product.img[0] : 'https://placehold.co/300x250/cccccc/333333?text=No+Image';
+                    const imageHover = product.img && product.img.length > 1 ? product.img[1] : imageMain;
+                    let colorsHtml = '';
+                    if (product.colors && Array.isArray(product.colors) && product.colors.length > 0) {
+                        colorsHtml = product.colors.map(color => {
+                            const colorImageSrc = color.image ? color.image : 'https://placehold.co/30x30/cccccc/333333?text=N/A';
+                            const swatchValueStyle = color.hex_code ? `background-color: ${color.hex_code};` : '';
+                            const swatchClass = color.swatch_class ? color.swatch_class : ''; 
+                            return `
+                                <li class="list-color-item color-swatch ${color.active ? 'active' : ''}">
+                                    <span class="tooltip">${color.name}</span>
+                                    <span class="swatch-value ${swatchClass}" style="${swatchValueStyle}"></span>
+                                    <img class="lazyload" data-src="${colorImageSrc}" src="${colorImageSrc}" alt="${color.name}" onerror="this.onerror=null;this.src='https://placehold.co/30x30/cccccc/333333?text=Error';">
+                                </li>
+                            `;
+                        }).join('');
+                    } else {
+                        colorsHtml = '<li class="text-xs text-gray-500 col-span-full">ไม่มีตัวเลือกสี</li>';
+                    }
+                    html_text += `
+                        <div class="card-product">
+                            <div class="card-product-wrapper">
+                                <a href="product-detail.html?id=${product.id}" class="product-img">
+                                    <img class="lazyload img-product" data-src="${imageMain}" src="${imageMain}" alt="${product.name}" onerror="this.onerror=null;this.src='https://placehold.co/300x250/cccccc/333333?text=Image+Error';">
+                                    <img class="lazyload img-hover" data-src="${imageHover}" src="${imageHover}" alt="${product.name} Hover" onerror="this.onerror=null;this.src='https://placehold.co/300x250/cccccc/333333?text=Image+Error';">
+                                </a>
+                                <div class="list-product-btn">
+                                    <a href="#quick_add" data-bs-toggle="modal" class="box-icon bg_white quick-add tf-btn-loading">
+                                        <span class="icon icon-bag"></span>
+                                        <span class="tooltip">Quick Add</span>
+                                    </a>
+                                    <a href="javascript:void(0);" class="box-icon bg_white wishlist btn-icon-action">
+                                        <span class="icon icon-heart"></span>
+                                        <span class="tooltip">Add to Wishlist</span>
+                                        <span class="icon icon-delete"></span>
+                                    </a>
+                                    <a href="#compare" data-bs-toggle="offcanvas" aria-controls="offcanvasLeft" class="box-icon bg_white compare btn-icon-action">
+                                        <span class="icon icon-compare"></span>
+                                        <span class="tooltip">Add to Compare</span>
+                                        <span class="icon icon-check"></span>
+                                    </a>
+                                    <a href="#quick_view" data-bs-toggle="modal" class="box-icon bg_white quickview tf-btn-loading">
+                                        <span class="icon icon-view"></span>
+                                        <span class="tooltip">Quick View</span>
+                                    </a>
+                                </div>
+                            </div>
+                            <div class="card-product-info">
+                                <a href="product-detail.html?id=${product.id}" class="title link">${product.name}</a>
+                                <span class="price">$${parseFloat(product.price).toFixed(2)}</span>
+                                <ul class="list-color-product">
+                                    ${colorsHtml}
+                                </ul>
+                            </div>
+                        </div>
+                    `;
+                }
+            }
+
+            if (productGridElement) {
+                productGridElement.innerHTML = html_text;
+            } else {
+                console.error("ไม่พบองค์ประกอบที่มี ID 'nav-sunday'.");
+            }
+        }
+    </script>
+</body>
+</html>
+```
