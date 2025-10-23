@@ -1,35 +1,74 @@
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from '/vite.svg'
-import './App.css'
+import React, { useEffect, useState } from 'react';
+import { useDispatch, useSelector } from 'react-redux';
+import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { fetchCart } from 'C:/react-app/React-Project/client/src/features/cart/cartSlice.js';
+import { logout } from './features/auth/authSlice';
+
+// Import Components
+import Navbar from './components/common/Navbar';
+import Footer from './components/common/Footer';
+import AuthModal from './features/auth/AuthModal.jsx';
+import CartModal from 'C:/react-app/React-Project/client/src/features/cart/CartModal.jsx';
+
+// Import Pages
+import ShopPage from './pages/ShopPage';
+// import HomePage from './pages/HomePage'; (ควรสร้าง)
+// import AboutPage from './pages/AboutPage'; (ควรสร้าง)
 
 function App() {
-  const [count, setCount] = useState(0)
+  const dispatch = useDispatch();
+  const user = useSelector((state) => state.auth.user);
+
+  // State สำหรับควบคุม Modal
+  const [showLogin, setShowLogin] = useState(false);
+  const [showCart, setShowCart] = useState(false);
+
+  // สั่งดึงข้อมูลตะกร้าเมื่อ User เปลี่ยน (login/logout)
+  useEffect(() => {
+    if (user) {
+      dispatch(fetchCart());
+    }
+  }, [user, dispatch]);
+
+  const handleLogout = () => {
+    dispatch(logout());
+    // (ปิด Modal ทั้งหมดถ้าจำเป็น)
+  };
 
   return (
-    <>
-      <div>
-        <a href="https://vite.dev" target="_blank">
-          <img src={viteLogo} className="logo" alt="Vite logo" />
-        </a>
-        <a href="https://react.dev" target="_blank">
-          <img src={reactLogo} className="logo react" alt="React logo" />
-        </a>
-      </div>
-      <h1>Vite + React</h1>
-      <div className="card">
-        <button onClick={() => setCount((count) => count + 1)}>
-          count is {count}
-        </button>
-        <p>
-          Edit <code>src/App.jsx</code> and save to test HMR
-        </p>
-      </div>
-      <p className="read-the-docs">
-        Click on the Vite and React logos to learn more
-      </p>
-    </>
-  )
+    <BrowserRouter>
+      {/* Navbar จะรับ props เพื่อเปิด/ปิด Modal
+        แทนที่การใช้ data-bs-toggle
+      */}
+      <Navbar 
+        onLoginClick={() => setShowLogin(true)} 
+        onCartClick={() => setShowCart(true)}
+      />
+
+      <Routes>
+        {/* คุณสามารถเพิ่มหน้า Home และ About ได้ที่นี่ */}
+        {/* <Route path="/" element={<HomePage />} /> */}
+        {/* <Route path="/about-us" element={<AboutPage />} /> */}
+        
+        {/* ตั้งค่าให้ / หรือ /shop-default แสดง ShopPage */}
+        <Route path="/" element={<ShopPage />} />
+        <Route path="/shop-default" element={<ShopPage />} /> 
+      </Routes>
+
+    
+
+      {/* Modal ทั้งหมดจะถูกควบคุมด้วย State
+      */}
+      <AuthModal 
+        show={showLogin} 
+        onHide={() => setShowLogin(false)} 
+      />
+      <CartModal 
+        show={showCart} 
+        onHide={() => setShowCart(false)} 
+      />
+    </BrowserRouter>
+  );
 }
 
-export default App
+export default App;
